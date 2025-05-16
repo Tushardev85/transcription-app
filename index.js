@@ -1,6 +1,7 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import transcriptRoutes from './routes/transcript.js'
+import authRoutes from './routes/auth.js'
 
 // Initialize environment variables
 dotenv.config()
@@ -12,8 +13,15 @@ const PORT = process.env.PORT || 8000
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
+// Debug logging
+console.log('Registering routes...')
+
 // Routes
 app.use('/api/transcript', transcriptRoutes)
+app.use('/api/auth', authRoutes)
+// console.log('Routes registered:', Object.keys(app._router.stack
+//   .filter(r => r.route)
+//   .map(r => r.route.path)))
 
 app.get('/', (req, res) => {
     res.status(200).json({
