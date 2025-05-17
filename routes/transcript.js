@@ -78,7 +78,8 @@ router.get('/:messageId/location/:locationId/with-token', async (req, res) => {
           ...config,
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'version': '2021-04-15'
           }
         });
       }
@@ -113,5 +114,6 @@ router.get('/:messageId/location/:locationId/with-token', async (req, res) => {
     });
   }
 });
+
 
 export default router;

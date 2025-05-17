@@ -19,6 +19,7 @@ console.log('Registering routes...')
 // Routes
 app.use('/api/transcript', transcriptRoutes)
 app.use('/api/auth', authRoutes)
+app.use('/api/auth/refresh-token', authRoutes)
 // console.log('Routes registered:', Object.keys(app._router.stack
 //   .filter(r => r.route)
 //   .map(r => r.route.path)))

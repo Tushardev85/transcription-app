@@ -50,6 +50,39 @@ export class GoHighLevelService {
     }
   }
 
+    /**
+   * Get new acess token through refresh token
+   * @param {string} refershToken - Get new access token through refresh token
+   * @returns {Promise<Object>} - The token response data
+   */
+
+    async getAccesToken(refershToken){
+      try{
+        if (!refershToken){
+          throw new Error('Refresh token is required');
+        }
+
+        const params = new URLSearchParams();   
+        params.append('client_id', ghlConfig.clientId);
+        params.append('client_secret', ghlConfig.clientSecret);
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', refershToken);
+
+        const response = await axios.post('https://services.leadconnectorhq.com/oauth/token', 
+        params,
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        }
+      );
+
+      return response.data;
+
+      }catch(error){
+        console.error('Error exchanging code for token:', error.response?.data || error.message);
+        throw error;
+      }
+    }
+
   /**
    * Fetch call transcript from Go High Level
    * @param {string} messageId - ID of the message to fetch transcript for
@@ -73,7 +106,7 @@ export class GoHighLevelService {
       console.log('Making request to:', ghlConfig.baseUrl + url);
       console.log('Headers:', {
         'Authorization': `Bearer ${ghlConfig.accessToken.substring(0, 10)}...` ,
-        'Version' : '2021-07-28'
+        'version' : '2021-04-15'
       });
       
       // Using the endpoint from Go High Level documentation: 
@@ -83,7 +116,10 @@ export class GoHighLevelService {
           transformResponse: [(data) => {
             // Return the raw data string instead of letting axios parse it
             return data;
-          }]
+          }],
+          headers: {
+            'version': '2021-04-15'
+          }
         });
         
         // Log the raw response for debugging
@@ -98,7 +134,7 @@ export class GoHighLevelService {
             return response.data;
           }
           // Otherwise attempt to parse it
-          return JSON.parse(response.data);
+           return JSON.parse(response.data);
         } catch (parseError) {
           console.error('Error parsing transcript response:', parseError);
           // If we can't parse it as JSON, return it as text
@@ -118,4 +154,5 @@ export class GoHighLevelService {
       throw error;
     }
   }
+
 } 

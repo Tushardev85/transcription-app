@@ -37,4 +37,33 @@ router.get('/callback', async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/auth/refresh-token
+ * @description Get new access token through refresh token
+ * @access Private
+ */
+
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+    const tokenData = await ghlService.getAccesToken(refreshToken);
+    return res.status(200).json({
+      success: true,
+      data: tokenData
+    });
+  } catch (error) {
+    console.error('Error in refresh token:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to refresh access token'
+    });
+  }
+});
+
 export default router; 
