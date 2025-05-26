@@ -88,7 +88,7 @@ export class GoHighLevelService {
    * @param {string} messageId - ID of the message to fetch transcript for
    * @returns {Promise<Object>} - The call transcript data
    */
-  async getCallTranscript(messageId,locationId) {
+  async getCallTranscript(messageId, locationId) {
     try {
       if (!messageId) {
         throw new Error('Message ID is required');
@@ -98,34 +98,29 @@ export class GoHighLevelService {
         throw new Error('Location ID is required');
       }
 
-      console.log(messageId,'------------------------------messageId in go high level service')
-      console.log(locationId,'------------------------------locationId in go high level service')
+      console.log('Transcript Request Details:');
+      console.log('- Message ID:', messageId);
+      console.log('- Location ID:', locationId);
       
-      // Log the full request URL and headers for debugging
-      const url = `/conversations/locations/${locationId}/messages/${messageId}/transcription`;
-      console.log('Making request to:', ghlConfig.baseUrl + url);
-      console.log('Headers:', {
-        'Authorization': `Bearer ${ghlConfig.accessToken.substring(0, 10)}...` ,
-        'version' : '2021-04-15'
+      const url = `conversations/locations/${locationId}/messages/${messageId}/transcription`;
+      console.log('- API URL:', ghlConfig.baseUrl + url);
+      console.log('- Headers:', {
+        Version: '2021-04-15',
+        Authorization: this.axios.defaults.headers['Authorization']?.substring(0, 20) + '...'
       });
       
-      // Using the endpoint from Go High Level documentation: 
-      // https://highlevel.stoplight.io/docs/integrations/9f8e2c1696a55-get-transcription-by-message-id
       try {
         const response = await this.axios.get(url, {
-          transformResponse: [(data) => {
-            // Return the raw data string instead of letting axios parse it
-            return data;
-          }],
+          transformResponse: [(data) => data], // Return raw data
           headers: {
-            'version': '2021-04-15'
+            'Version': '2021-04-15',
+            'Authorization': this.axios.defaults.headers['Authorization']
           }
         });
         
-        // Log the raw response for debugging
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-        console.log('Raw transcript response:', response.data);
+        console.log('API Response:');
+        console.log('- Status:', response.status);
+        console.log('- Status Text:', response.statusText);
 
         // Try to parse the JSON response
         try {
@@ -133,24 +128,41 @@ export class GoHighLevelService {
           if (typeof response.data === 'object') {
             return response.data;
           }
-          // Otherwise attempt to parse it
-           return JSON.parse(response.data);
+
+          const parsedData = JSON.parse(response.data);
+          console.log('- Parsed Response:', parsedData);
+          return parsedData;
         } catch (parseError) {
-          console.error('Error parsing transcript response:', parseError);
-          // If we can't parse it as JSON, return it as text
+          console.error('Failed to parse response as JSON:', {
+            error: parseError.message,
+            rawData: response.data
+          });
           return { rawText: response.data };
         }
       } catch (requestError) {
-        console.error('API request error details:', {
+        const errorDetails = {
           message: requestError.message,
           status: requestError.response?.status,
           statusText: requestError.response?.statusText,
-          responseData: requestError.response?.data
-        });
-        throw requestError;
+          data: requestError.response?.data,
+          url: ghlConfig.baseUrl + url,
+          headers: requestError.response?.headers
+        };
+
+        console.error('API Request Failed:', JSON.stringify(errorDetails, null, 2));
+
+        // Throw a more informative error
+        throw new Error(JSON.stringify({
+          message: 'Failed to fetch transcript',
+          status: errorDetails.status,
+          details: typeof errorDetails.data === 'string' ? JSON.parse(errorDetails.data) : errorDetails.data
+        }));
       }
     } catch (error) {
-      console.error('Error fetching call transcript:', error.message);
+      console.error('Transcript Service Error:', {
+        message: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }

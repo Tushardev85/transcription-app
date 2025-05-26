@@ -12,18 +12,37 @@ const ghlService = new GoHighLevelService();
  */
 router.get('/:messageId/location/:locationId', async (req, res) => {
   try {
-    const { messageId } = req.params;
-    const { locationId } = req.params;
+    const { messageId, locationId } = req.params;
+    const authHeader = req.headers.authorization;
 
-    console.log(messageId,'------------------------------messageId in transcript api')
-    console.log(locationId,'------------------------------locationId in transcript api')
+    console.log('Incoming Request:');
+    console.log('- Message ID:', messageId);
+    console.log('- Location ID:', locationId);
+    console.log('- Auth Header:', authHeader ? `${authHeader.substring(0, 20)}...` : 'Not provided');
     
-    if (!messageId) {
+    if (!messageId || !locationId) { 
       return res.status(400).json({ 
         success: false, 
-        message: 'Message ID is required' 
+        message: 'Message ID and Location ID are required',
+        details: {
+          messageId: messageId ? 'provided' : 'missing',
+          locationId: locationId ? 'provided' : 'missing'
+        }
       });
     }
+
+    if (!authHeader) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authorization header is required',
+        details: {
+          provided_headers: Object.keys(req.headers)
+        }
+      });
+    }
+
+    // Set the authorization header for this request
+    ghlService.axios.defaults.headers['Authorization'] = authHeader;
     
     const transcript = await ghlService.getCallTranscript(messageId, locationId);
     
@@ -32,88 +51,185 @@ router.get('/:messageId/location/:locationId', async (req, res) => {
       data: transcript
     });
   } catch (error) {
-    console.error('Error in transcript route:', error.message);
-    return res.status(500).json({
+    console.error('Transcript Route Error:', {
+      message: error.message,
+      stack: error.stack
+    });
+
+    // Try to parse the error message if it's a JSON string
+    let errorDetails;
+    try {
+      errorDetails = JSON.parse(error.message);
+    } catch {
+      errorDetails = {
+        message: error.message,
+        status: 500
+      };
+    }
+
+    return res.status(errorDetails.status || 500).json({
       success: false,
-      message: error.message || 'Failed to fetch call transcript'
+      message: errorDetails.message || 'Failed to fetch call transcript',
+      details: errorDetails.details || error.message
     });
   }
 });
+
+// /**
+//  * @route GET /api/transcript/:messageId/location/:locationId/with-token
+//  * @description Get call transcript with a custom access token
+//  * @access Private
+//  */
+// router.get('/:messageId/location/:locationId/with-token', async (req, res) => {
+//   try {
+//     const { messageId, locationId } = req.params;
+//     // Check for token in query params or header
+//     const accessToken = req.query.access_token || req.headers.authorization?.split(' ')[1];
+    
+//     console.log('Request for transcript with custom token');
+//     console.log('MessageID:', messageId);
+//     console.log('LocationID:', locationId);
+//     console.log('Token provided:', accessToken ? 'Yes' : 'No');
+    
+//     if (!messageId || !locationId) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: 'Message ID and Location ID are required' 
+//       });
+//     }
+    
+//     if (!accessToken) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: 'Access token is required in query param access_token or Authorization header' 
+//       });
+//     }
+    
+//     // Create a custom axios instance with the provided token
+//     const customAxios = {
+//       get: async (url, config = {}) => {
+//         const axios = (await import('axios')).default;
+//         return axios.get(`${ghlConfig.baseUrl}${url}`, {
+//           ...config,
+//           headers: {
+//             'Authorization': `Bearer ${accessToken}`,
+//             'Content-Type': 'application/json',
+//             'version': '2021-04-15'
+//           }
+//         });
+//       }
+//     };
+    
+//     // Call the API directly
+//     try {
+//       const url = `/conversations/locations/${locationId}/messages/${messageId}/transcription`;
+//       console.log('Making request to:', ghlConfig.baseUrl + url);
+      
+//       const response = await customAxios.get(url);
+      
+//       return res.status(200).json({
+//         success: true,
+//         data: response.data
+//       });
+//     } catch (apiError) {
+//       console.error('API Error:', apiError.message);
+//       console.error('Response:', apiError.response?.data);
+      
+//       return res.status(apiError.response?.status || 500).json({
+//         success: false,
+//         message: apiError.message,
+//         details: apiError.response?.data
+//       });
+//     }
+//   } catch (error) {
+//     console.error('Error in transcript route with custom token:', error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message || 'Failed to fetch call transcript'
+//     });
+//   }
+// });
 
 /**
- * @route GET /api/transcript/:messageId/location/:locationId/with-token
- * @description Get call transcript with a custom access token
- * @access Private
+ * @route POST /api/transcript/webhook
+ * @description Webhook endpoint to receive events from Go High Level
+ * @access Public
  */
-router.get('/:messageId/location/:locationId/with-token', async (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
-    const { messageId, locationId } = req.params;
-    // Check for token in query params or header
-    const accessToken = req.query.access_token || req.headers.authorization?.split(' ')[1];
-    
-    console.log('Request for transcript with custom token');
-    console.log('MessageID:', messageId);
-    console.log('LocationID:', locationId);
-    console.log('Token provided:', accessToken ? 'Yes' : 'No');
-    
-    if (!messageId || !locationId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Message ID and Location ID are required' 
-      });
+    // Log the incoming webhook data
+    console.log('Received webhook event:', {
+      headers: req.headers,
+      body: req.body,
+      timestamp: new Date().toISOString()
+    });
+
+    // Verify the webhook signature if provided
+    const signature = req.headers['x-ghl-signature'];
+    if (signature) {
+      // TODO: Implement signature verification if needed
+      console.log('Webhook signature:', signature);
     }
+
+    // Process the webhook data
+    const eventData = req.body;
     
-    if (!accessToken) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Access token is required in query param access_token or Authorization header' 
-      });
-    }
-    
-    // Create a custom axios instance with the provided token
-    const customAxios = {
-      get: async (url, config = {}) => {
-        const axios = (await import('axios')).default;
-        return axios.get(`${ghlConfig.baseUrl}${url}`, {
-          ...config,
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'version': '2021-04-15'
-          }
+    console.log(eventData,'------------------------------eventData in transcript api');
+    console.log(eventData.messageType === 'CALL','------------------------------eventData.body type call in transcript api');
+
+    // Only process if the message type is CALL
+    if (eventData.messageType === 'CALL') {
+      const messageId = eventData.messageId;
+      const locationId = eventData.locationId;
+
+      console.log(`Found CALL message - MessageID: ${messageId}, LocationID: ${locationId}`);
+
+      if (messageId && locationId) {
+        try {
+          console.log(`Attempting to fetch transcript for messageId: ${messageId}, locationId: ${locationId}`);
+          const transcript = await ghlService.getCallTranscript(messageId, locationId);
+          
+          console.log('Successfully fetched transcript:', transcript);
+          
+          return res.status(200).json({
+            success: true,
+            message: 'Call transcript fetched successfully',
+            data: {
+              transcript,
+              messageType: 'CALL',
+              messageId,
+              locationId
+            }
+          });
+        } catch (transcriptError) {
+          console.error('Error fetching transcript:', transcriptError);
+          return res.status(200).json({
+            success: true,
+            message: 'Webhook received but failed to fetch transcript',
+            error: transcriptError.message
+          });
+        }
+      } else {
+        console.log('Missing messageId or locationId for CALL message');
+        return res.status(200).json({
+          success: false,
+          message: 'Missing messageId or locationId for CALL message'
         });
       }
-    };
-    
-    // Call the API directly
-    try {
-      const url = `/conversations/locations/${locationId}/messages/${messageId}/transcription`;
-      console.log('Making request to:', ghlConfig.baseUrl + url);
-      
-      const response = await customAxios.get(url);
-      
-      return res.status(200).json({
-        success: true,
-        data: response.data
-      });
-    } catch (apiError) {
-      console.error('API Error:', apiError.message);
-      console.error('Response:', apiError.response?.data);
-      
-      return res.status(apiError.response?.status || 500).json({
-        success: false,
-        message: apiError.message,
-        details: apiError.response?.data
-      });
     }
+
+    // If not a CALL message or missing required data, just acknowledge
+    return res.status(200).json({
+      success: true,
+      message: 'Webhook received successfully (non-CALL message)'
+    });
   } catch (error) {
-    console.error('Error in transcript route with custom token:', error);
+    console.error('Error processing webhook:', error);
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to fetch call transcript'
+      message: 'Error processing webhook'
     });
   }
 });
-
 
 export default router;
