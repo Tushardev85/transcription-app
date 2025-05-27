@@ -122,6 +122,7 @@ export class GoHighLevelService {
         console.log('- Status:', response.status);
         console.log('- Status Text:', response.statusText);
 
+
         // Try to parse the JSON response
         try {
           // If it's already an object, return it as is

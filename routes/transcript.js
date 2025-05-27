@@ -156,7 +156,7 @@ router.get('/:messageId/location/:locationId', async (req, res) => {
  * @access Public
  */
 router.post('/webhook', async (req, res) => {
-  try {
+   try {
     // Log the incoming webhook data
     console.log('Received webhook event:', {
       headers: req.headers,
@@ -185,37 +185,58 @@ router.post('/webhook', async (req, res) => {
       console.log(`Found CALL message - MessageID: ${messageId}, LocationID: ${locationId}`);
 
       if (messageId && locationId) {
-        try {
-          console.log(`Attempting to fetch transcript for messageId: ${messageId}, locationId: ${locationId}`);
-          const transcript = await ghlService.getCallTranscript(messageId, locationId);
-          
-          console.log('Successfully fetched transcript:', transcript);
-          
-          return res.status(200).json({
-            success: true,
-            message: 'Call transcript fetched successfully',
-            data: {
-              transcript,
-              messageType: 'CALL',
-              messageId,
-              locationId
-            }
-          });
-        } catch (transcriptError) {
-          console.error('Error fetching transcript:', transcriptError);
-          return res.status(200).json({
-            success: true,
-            message: 'Webhook received but failed to fetch transcript',
-            error: transcriptError.message
-          });
-        }
-      } else {
-        console.log('Missing messageId or locationId for CALL message');
-        return res.status(200).json({
-          success: false,
-          message: 'Missing messageId or locationId for CALL message'
+        // Send an immediate acknowledgment response
+        res.status(200).json({
+          success: true,
+          message: 'Webhook received, transcript processing initiated',
+          data: {
+            messageType: 'CALL',
+            messageId,
+            locationId
+          }
         });
+
+        // Process transcript in the background with retries
+        const maxRetries = 3;
+        const retryDelay = 10000; // 10 seconds
+
+        const fetchTranscriptWithRetry = async (attempt = 1) => {
+          try {
+            console.log(`Attempting to fetch transcript (attempt ${attempt}/${maxRetries}) for messageId: ${messageId}`);
+            const transcript = await ghlService.getCallTranscript(messageId, locationId);
+            
+            if (transcript && Array.isArray(transcript) && transcript.length > 0) {
+              console.log('Successfully fetched transcript:', transcript);
+              // Here you could store the transcript or process it further
+            } else if (attempt < maxRetries) {
+              console.log(`Empty transcript received, retrying in ${retryDelay/1000} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              return fetchTranscriptWithRetry(attempt + 1);
+            } else {
+              console.log('Max retries reached, no transcript available');
+            }
+          } catch (error) {
+            console.error('Error fetching transcript:', error);
+            if (attempt < maxRetries) {
+              console.log(`Retry attempt ${attempt + 1} in ${retryDelay/1000} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              return fetchTranscriptWithRetry(attempt + 1);
+            }
+          }
+        };
+
+        // Start the background processing
+        fetchTranscriptWithRetry().catch(error => {
+          console.error('Background transcript processing failed:', error);
+        });
+
+        return;
       }
+      
+      return res.status(200).json({
+        success: false,
+        message: 'Missing messageId or locationId for CALL message'
+      });
     }
 
     // If not a CALL message or missing required data, just acknowledge
