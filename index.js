@@ -2,6 +2,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import transcriptRoutes from './routes/transcript.js'
 import authRoutes from './routes/auth.js'
+import callRouter from './routes/call.js'
 
 // Initialize environment variables
 dotenv.config()
@@ -20,9 +21,7 @@ console.log('Registering routes...')
 app.use('/api/transcript', transcriptRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/auth/refresh-token', authRoutes)
-// console.log('Routes registered:', Object.keys(app._router.stack
-//   .filter(r => r.route)
-//   .map(r => r.route.path)))
+app.use('/call', callRouter)
 
 app.get('/', (req, res) => {
     res.status(200).json({
