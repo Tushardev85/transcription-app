@@ -1,3 +1,8 @@
+import { initializeTwilio } from "../helpers/twilio.js";
+import dotenv from "dotenv"
+
+dotenv.config()
+
 export class CallController {
     async CreateCall(req, res) {
         try {

@@ -1,4 +1,7 @@
-import twilio from "twilio"
+import twilio from "twilio";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export function initializeTwilio(){
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
