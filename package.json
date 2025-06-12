@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx nodemon index.js"
+    "dev": "npx nodemon index.js",
+    "build": "gcloud builds submit --pack image=us-central1-docker.pkg.dev/calendar-voice-462418/transcript-app/transcript-app-microservice:manual --no-cache",
+    "deploy": "gcloud run deploy transcript-app-service --image us-central1-docker.pkg.dev/calendar-voice-462418/transcript-app/transcript-app-microservice:manual --platform managed --region us-central1"
   },
   "keywords": [],
   "author": "",
